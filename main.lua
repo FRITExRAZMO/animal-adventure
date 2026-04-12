@@ -1,3 +1,41 @@
+--[[
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#=::=*%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@#..:=*%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#-         .-*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@=      :=*@@@@@@@@@@@@@@@@@@@@@@@@#:              .*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@%.          :*%@@@@@@@@@@@@@@@@@@*-       BY         #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@:         .==-..:=*%@@@@@@@@@@@+.        FRITE       =@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@+          #@@@@@#=:  :+#@@@@@@@@#=:                  =@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@.         *@@@@@@@@@@#+=: .-+*%@@@*.               -=#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@                                                                                                   
+@+         =@@@@@@@@@@@@@@@@%#+-..:-:               -@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 
+@         .@@@@@@@@@@@@@@@@@@@@@@@#+:       .    .=%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
++         %@@@@@@@@@@@@@@@@@@@@@@@@@%*--:=:       :=*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 
+.        +@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@.          .-=+#%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+         @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@.           ++-:  .:=+*#@%@%@@@@@@@@@@@@@@@@@@@@
+        :@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@.            :%@@@@%*+-:.     .-=#@@@@@@@@@@@@@@@
+        +@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%               #@@@@@@@@@@:        .:=+*#%@@@@@@@
+        *@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%.               .@@@@@@@@%*.     *%#+=:      .-=+*
+        #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#    .            .@#*=-:.       =@@@@@@@@%#*=-.    
+        %@@@@@@@@@@@@@@@@@@@@@@@@@@@@@-   +*                      .-=#@@@@@@@@@@@@@@@@@%*+
+.       %@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%:                     :=+#@@@@@@@@@@@@@@@@@@@@@@@@@
+=       *@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#-            .@#*#%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+%       -@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%+          :@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@*       %@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#           :#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@-      :@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@=             +@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@%.      +@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*.               #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@%       %@@@@@@@@@@@@@@@@@@@@@@@@@@*:                  =@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@+      =@@@@@@@@@@@@@@@@@@@@@@@#=.                     :%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@.     .@@@@@@@@@@@@@@@@@@@@%=.                         .%@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@:     +@@@@@@@@@@@@@@@@@%+.                           -##@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@.    =@@@@@@@@@@@@@@@@*-                               %@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@%    =@@@@@@@@@@@@@@@+.                                 +@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@%    @@@@@@@@@@@@@@+.                                   :@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+]]--
+
+
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local RS = game:GetService("ReplicatedStorage")
@@ -70,6 +108,7 @@ Rayfield:Notify({
 local TFarm = W:CreateTab("Farm", 4483362458)
 local TOther = W:CreateTab("Coins", 4483362458)
 local TPVP = W:CreateTab("PVP", 4483362458)
+local Tab = W:CreateTab("Spawner", 4483362458)
 local TScript = W:CreateTab("Script", 4483362458)
 local TCredits = W:CreateTab("Credits", nil)
 
@@ -197,6 +236,69 @@ TPVP:CreateToggle({
     end
 })
 
+TPVP:CreateSection("Instant Kill")
+
+local LPH_IK = false
+
+local function ikAll()
+    local carryEv = Ev.CarryEvent
+    local npcDmgEv = Ev.NPCDamageEvent
+
+    while LPH_IK do
+        for _, p in ipairs(Players:GetPlayers()) do
+            if not LPH_IK then break end
+            if p ~= LP and p.Character then
+                local c = p.Character
+                local root = c:FindFirstChild("HumanoidRootPart")
+
+                if root then
+                    pcall(function()
+                        LP.Character:SetPrimaryPartCFrame(root.CFrame)
+                    end)
+
+                    wait(0.3)
+
+                    pcall(function()
+                        fire(carryEv, p, "request_accepted")
+                    end)
+
+                    wait(0.2)
+
+                    pcall(function()
+                        fire(npcDmgEv, math.huge)
+                    end)
+
+                    wait(0.2)
+                    
+                    pcall(function()
+                        local args = {
+                            [1] = "Human",
+                            [2] = "human_gamepass4",
+                            [3] = "Human"
+                        }
+                        game:GetService("ReplicatedStorage").Events.SpawnEvent:FireServer(unpack(args))
+                    end)
+
+                    wait(0.6)
+                end
+            end
+        end
+        wait(0.6)
+    end
+end
+
+TPVP:CreateToggle({
+    Name = "Instant Kill All Players",
+    CurrentValue = false,
+    Flag = "LPH_IKToggle",
+    Callback = function(v)
+        LPH_IK = v
+        if v then
+            coroutine.wrap(ikAll)()
+        end
+    end
+})
+
 TScript:CreateSection("Utilities")
 
 local LPH_InfHP = false
@@ -227,6 +329,195 @@ TScript:CreateButton({
     Callback = function()
         loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
     end
+})
+
+local AnimalsGUI = game:GetService("Players").LocalPlayer.PlayerGui.AnimalsGUI
+local Animals = AnimalsGUI.windowFrame.bodyFrame.body2Frame.Animals
+
+local function ExtractAssetId(imageStr)
+    if not imageStr or imageStr == "" then return 4483362458 end
+    local id = imageStr:match("rbxassetid://(%d+)")
+    if id then return tonumber(id) end
+    id = imageStr:match("id=(%d+)")
+    if id then return tonumber(id) end
+    id = imageStr:match("^(%d+)$")
+    if id then return tonumber(id) end
+    return 4483362458
+end
+
+local function GetSkinImage(animalFolder, skinName)
+    local success, result = pcall(function()
+        return Animals[animalFolder][skinName].Button.ImageLabel.Image
+    end)
+    if success then
+        return ExtractAssetId(result)
+    end
+    return 4483362458
+end
+
+local function NotifySpawn(animalFolder, skinName)
+    local imgId = GetSkinImage(animalFolder, skinName)
+    Rayfield:Notify({
+        Title = "Skin sélectionné",
+        Content = skinName,
+        Duration = 4,
+        Image = imgId,
+    })
+end
+
+-- ==================== HUMAN ====================
+local HumanLabel = Tab:CreateLabel("HUMAN SPAWNER", 4483362458, Color3.fromRGB(255, 255, 255), false)
+
+local SelectedHuman = "human_none"
+
+local HumanDropdown = Tab:CreateDropdown({
+    Name = "Human Skin",
+    Options = {
+        "human_blade", "human_electric", "human_fire",
+        "human_gamepass1", "human_gamepass2", "human_gamepass3", "human_gamepass4",
+        "human_grass", "human_ice", "human_none",
+        "human_rock", "human_s1", "human_s2",
+        "human_void", "human_water"
+    },
+    CurrentOption = {"human_none"},
+    MultipleOptions = false,
+    Flag = "HumanDropdown",
+    Callback = function(Options)
+        SelectedHuman = Options[1]
+        NotifySpawn("Human", SelectedHuman)
+    end,
+})
+
+local HumanButton = Tab:CreateButton({
+    Name = "Spawn Human",
+    Callback = function()
+        local args = { [1] = "Human", [2] = SelectedHuman, [3] = "Human" }
+        game:GetService("ReplicatedStorage").Events.SpawnEvent:FireServer(unpack(args))
+    end,
+})
+
+-- ==================== BEAR ====================
+local BearLabel = Tab:CreateLabel("BEAR SPAWNER", 4483362458, Color3.fromRGB(255, 255, 255), false)
+
+local SelectedBear = "bear1"
+
+local BearDropdown = Tab:CreateDropdown({
+    Name = "Bear Skin",
+    Options = {
+        "babybear1", "babybear2", "babybear3",
+        "bear1", "bear2", "bear3",
+        "bearelectric", "bearfire", "beargrass",
+        "bearice", "bearrock", "bears1", "bears2",
+        "bearvoid", "bearwater"
+    },
+    CurrentOption = {"bear1"},
+    MultipleOptions = false,
+    Flag = "BearDropdown",
+    Callback = function(Options)
+        SelectedBear = Options[1]
+        NotifySpawn("Bear", SelectedBear)
+    end,
+})
+
+local BearButton = Tab:CreateButton({
+    Name = "Spawn Bear",
+    Callback = function()
+        local args = { [1] = "Bear", [2] = SelectedBear, [3] = "Bear" }
+        game:GetService("ReplicatedStorage").Events.SpawnEvent:FireServer(unpack(args))
+    end,
+})
+
+-- ==================== RABBIT ====================
+local RabbitLabel = Tab:CreateLabel("RABBIT SPAWNER", 4483362458, Color3.fromRGB(255, 255, 255), false)
+
+local SelectedRabbit = "rabbit1"
+
+local RabbitDropdown = Tab:CreateDropdown({
+    Name = "Rabbit Skin",
+    Options = {
+        "babyrabbit1", "babyrabbit2", "babyrabbit3",
+        "rabbit1", "rabbit2", "rabbit3",
+        "rabbitelectric", "rabbitfire", "rabbitgrass",
+        "rabbitice", "rabbitrock", "rabbits1", "rabbits2",
+        "rabbitvoid", "rabbitwater"
+    },
+    CurrentOption = {"rabbit1"},
+    MultipleOptions = false,
+    Flag = "RabbitDropdown",
+    Callback = function(Options)
+        SelectedRabbit = Options[1]
+        NotifySpawn("Rabbit", SelectedRabbit)
+    end,
+})
+
+local RabbitButton = Tab:CreateButton({
+    Name = "Spawn Rabbit",
+    Callback = function()
+        local args = { [1] = "Rabbit", [2] = SelectedRabbit, [3] = "Rabbit" }
+        game:GetService("ReplicatedStorage").Events.SpawnEvent:FireServer(unpack(args))
+    end,
+})
+
+-- ==================== DOG ====================
+local DogLabel = Tab:CreateLabel("DOG SPAWNER", 4483362458, Color3.fromRGB(255, 255, 255), false)
+
+local SelectedDog = "dog1"
+
+local DogDropdown = Tab:CreateDropdown({
+    Name = "Dog Skin",
+    Options = {
+        "dog1", "dog2", "dog3",
+        "dogelectric", "dogfire", "doggrass",
+        "dogice", "dogrock", "dogs1", "dogs2",
+        "dogvoid", "dogwater",
+        "puppy1", "puppy2", "puppy3"
+    },
+    CurrentOption = {"dog1"},
+    MultipleOptions = false,
+    Flag = "DogDropdown",
+    Callback = function(Options)
+        SelectedDog = Options[1]
+        NotifySpawn("Dog", SelectedDog)
+    end,
+})
+
+local DogButton = Tab:CreateButton({
+    Name = "Spawn Dog",
+    Callback = function()
+        local args = { [1] = "Dog", [2] = SelectedDog, [3] = "Dog" }
+        game:GetService("ReplicatedStorage").Events.SpawnEvent:FireServer(unpack(args))
+    end,
+})
+
+-- ==================== CAT ====================
+local CatLabel = Tab:CreateLabel("CAT SPAWNER", 4483362458, Color3.fromRGB(255, 255, 255), false)
+
+local SelectedCat = "cat1"
+
+local CatDropdown = Tab:CreateDropdown({
+    Name = "Cat Skin",
+    Options = {
+        "cat1", "cat2", "cat3",
+        "catelectric", "catfire", "catgrass",
+        "catice", "catrock", "cats1", "cats2",
+        "catvoid", "catwater",
+        "kitten1", "kitten2", "kitten3"
+    },
+    CurrentOption = {"cat1"},
+    MultipleOptions = false,
+    Flag = "CatDropdown",
+    Callback = function(Options)
+        SelectedCat = Options[1]
+        NotifySpawn("Cat", SelectedCat)
+    end,
+})
+
+local CatButton = Tab:CreateButton({
+    Name = "Spawn Cat",
+    Callback = function()
+        local args = { [1] = "Cat", [2] = SelectedCat, [3] = "Cat" }
+        game:GetService("ReplicatedStorage").Events.SpawnEvent:FireServer(unpack(args))
+    end,
 })
 
 TCredits:CreateSection("Credits")
