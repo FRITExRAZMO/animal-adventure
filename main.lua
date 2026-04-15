@@ -88,6 +88,52 @@ local function closest()
     return best
 end
 
+local LPH_RealLvl = LP.leaderstats.Level.Value
+local LPH_LvlGod = false
+
+LP.leaderstats.Level:GetPropertyChangedSignal("Value"):Connect(function()
+    if not LPH_LvlGod then
+        LPH_RealLvl = LP.leaderstats.Level.Value
+    end
+end)
+
+local LPH_AreaReq = {
+    ["area1"]=0,["area2"]=50,["area3"]=200,["area4"]=450,["area5"]=750,
+    ["area6"]=1100,["area7"]=1500,["area8"]=1500,["area9"]=1500,
+}
+
+local LPH_AreaNPC = {
+    ["area1"]="Lvl1",["area2"]="Rock",["area3"]="Grass",["area4"]="Water",
+    ["area5"]="Ice",["area6"]="Lightning",["area7"]="Void",["area8"]="Fire",["area9"]="Worm",
+}
+
+local function LPH_AreaLvl(a)
+    if a == "area1" then return 0 end
+    local ok, n = pcall(function()
+        local t = workspace.Areas[a].Blocker.Text.SurfaceGui.TextLabel.Text
+        return tonumber(t:match("Level%s+(%d+)"))
+    end)
+    return (ok and n) or LPH_AreaReq[a] or math.huge
+end
+
+local function LPH_BestNPC(a)
+    local cap = a:gsub("^%l", string.upper)
+    local ok, n = pcall(function()
+        return workspace.NPCs[cap]:GetChildren()[1].Name
+    end)
+    return (ok and n) or LPH_AreaNPC[a]
+end
+
+local function LPH_Best()
+    local best, req = "area1", 0
+    for i = 1, 9 do
+        local a = "area" .. i
+        local r = LPH_AreaLvl(a)
+        if LPH_RealLvl >= r and r >= req then best = a req = r end
+    end
+    return best, LPH_BestNPC(best)
+end
+
 local W = Rayfield:CreateWindow({
     Name = "FRITE HUB | Animal Adventures",
     LoadingTitle = "FRITE HUB",
@@ -96,7 +142,6 @@ local W = Rayfield:CreateWindow({
     Discord = {Enabled = false},
     KeySystem = false
 })
-
 
 Rayfield:Notify({
     Title = "FRITE HUB",
@@ -108,9 +153,45 @@ Rayfield:Notify({
 local TFarm = W:CreateTab("Farm", 4483362458)
 local TOther = W:CreateTab("Coins", 4483362458)
 local TPVP = W:CreateTab("PVP", 4483362458)
+local TMisc = W:CreateTab("Misc", 4483362458)
 local Tab = W:CreateTab("Spawner", 4483362458)
 local TScript = W:CreateTab("Script", 4483362458)
 local TCredits = W:CreateTab("Credits", nil)
+
+local LPH_FARM_SKILLS = {
+    "Blackhole","Fireball","GreenSun","LaserBeam","Leafball",
+    "LightningStrike","Lightningball","Meteor","Rock","Snowball",
+    "Voidball","Waterball","Windball","YellowBeam"
+}
+
+TFarm:CreateSection("Best Farm")
+
+local LPH_BFarm = false
+local LPH_BFarmLbl = TFarm:CreateLabel("NPC : --", 4483362458, Color3.fromRGB(180,180,180), false)
+
+TFarm:CreateToggle({
+    Name = "Best Farm ⭐",
+    CurrentValue = false,
+    Flag = "LPH_BFarmToggle",
+    Callback = function(v)
+        LPH_BFarm = v
+        if v then
+            task.spawn(function()
+                while LPH_BFarm do
+                    local _, npc = LPH_Best()
+                    pcall(function() LPH_BFarmLbl:Set("NPC : " .. npc) end)
+                    dmg(npc)
+                    for _, sk in ipairs(LPH_FARM_SKILLS) do
+                        if not LPH_BFarm then break end
+                        skill(npc, sk)
+                    end
+                    wait()
+                end
+                pcall(function() LPH_BFarmLbl:Set("NPC : --") end)
+            end)
+        end
+    end
+})
 
 TFarm:CreateSection("NPC Farm")
 
@@ -124,12 +205,6 @@ local LPH_NPCS = {
     {name="Void",      icon="🌌"},
     {name="Fire",      icon="🔥"},
     {name="Worm",      icon="🪱"},
-}
-
-local LPH_FARM_SKILLS = {
-    "Blackhole","Fireball","GreenSun","LaserBeam","Leafball",
-    "LightningStrike","Lightningball","Meteor","Rock","Snowball",
-    "Voidball","Waterball","Windball","YellowBeam"
 }
 
 for _, n in ipairs(LPH_NPCS) do
@@ -153,6 +228,31 @@ for _, n in ipairs(LPH_NPCS) do
         end
     })
 end
+
+TOther:CreateSection("Best Coins")
+
+local LPH_BCoin = false
+local LPH_BCoinLbl = TOther:CreateLabel("NPC : --", 4483362458, Color3.fromRGB(180,180,180), false)
+
+TOther:CreateToggle({
+    Name = "Best Coins ⭐",
+    CurrentValue = false,
+    Flag = "LPH_BCoinToggle",
+    Callback = function(v)
+        LPH_BCoin = v
+        if v then
+            task.spawn(function()
+                while LPH_BCoin do
+                    local _, npc = LPH_Best()
+                    pcall(function() LPH_BCoinLbl:Set("NPC : " .. npc) end)
+                    coin(npc)
+                    wait()
+                end
+                pcall(function() LPH_BCoinLbl:Set("NPC : --") end)
+            end)
+        end
+    end
+})
 
 TOther:CreateSection("Coins Collection")
 
@@ -239,51 +339,33 @@ TPVP:CreateToggle({
 TPVP:CreateSection("Instant Kill")
 
 local LPH_IK = false
+local LPH_IKT = false
+local LPH_Targets = {}
+local LPH_CarryEv = Ev.CarryEvent
+local LPH_NpcDmgEv = Ev.NPCDamageEvent
+local LPH_SpawnEv = RS.Events.SpawnEvent
+
+local function LPH_KillPlayer(p)
+    if not p or not p.Character then return end
+    local root = p.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    pcall(function() LP.Character:SetPrimaryPartCFrame(root.CFrame) end)
+    task.wait(0.3)
+    pcall(function() fire(LPH_CarryEv, p, "request_accepted") end)
+    task.wait(0.2)
+    pcall(function() fire(LPH_NpcDmgEv, math.huge) end)
+    task.wait(0.2)
+    pcall(function() LPH_SpawnEv:FireServer("Human","human_gamepass1","Human") end)
+    task.wait(0.6)
+end
 
 local function ikAll()
-    local carryEv = Ev.CarryEvent
-    local npcDmgEv = Ev.NPCDamageEvent
-
     while LPH_IK do
         for _, p in ipairs(Players:GetPlayers()) do
             if not LPH_IK then break end
-            if p ~= LP and p.Character then
-                local c = p.Character
-                local root = c:FindFirstChild("HumanoidRootPart")
-
-                if root then
-                    pcall(function()
-                        LP.Character:SetPrimaryPartCFrame(root.CFrame)
-                    end)
-
-                    wait(0.3)
-
-                    pcall(function()
-                        fire(carryEv, p, "request_accepted")
-                    end)
-
-                    wait(0.2)
-
-                    pcall(function()
-                        fire(npcDmgEv, math.huge)
-                    end)
-
-                    wait(0.2)
-                    
-                    pcall(function()
-                        local args = {
-                            [1] = "Human",
-                            [2] = "human_gamepass4",
-                            [3] = "Human"
-                        }
-                        game:GetService("ReplicatedStorage").Events.SpawnEvent:FireServer(unpack(args))
-                    end)
-
-                    wait(0.6)
-                end
-            end
+            if p ~= LP then LPH_KillPlayer(p) end
         end
-        wait(0.6)
+        task.wait(0.6)
     end
 end
 
@@ -293,8 +375,158 @@ TPVP:CreateToggle({
     Flag = "LPH_IKToggle",
     Callback = function(v)
         LPH_IK = v
+        if v then task.spawn(ikAll) end
+    end
+})
+
+TPVP:CreateSection("Instant Kill Target")
+
+local function LPH_PlayerList()
+    local t = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LP then table.insert(t, p.Name) end
+    end
+    return t
+end
+
+local function ikTarget()
+    while LPH_IKT do
+        for _, tn in ipairs(LPH_Targets) do
+            if not LPH_IKT then break end
+            LPH_KillPlayer(Players:FindFirstChild(tn))
+        end
+        task.wait(0.6)
+    end
+end
+
+_G.LPH_pList = LPH_PlayerList()
+
+local LPH_IKDrop = TPVP:CreateDropdown({
+    Name = "Select Target Players",
+    Options = _G.LPH_pList,
+    CurrentOption = {},
+    MultipleOptions = true,
+    Flag = "LPH_IKTargets",
+    Callback = function(v) LPH_Targets = v end,
+})
+
+Players.PlayerAdded:Connect(function(p)
+    if p ~= LP then
+        table.insert(_G.LPH_pList, p.Name)
+        LPH_IKDrop:Refresh(_G.LPH_pList, 1)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(p)
+    for i, n in ipairs(LPH_Targets) do
+        if n == p.Name then table.remove(LPH_Targets, i) break end
+    end
+    for i, n in ipairs(_G.LPH_pList) do
+        if n == p.Name then table.remove(_G.LPH_pList, i) break end
+    end
+    LPH_IKDrop:Refresh(_G.LPH_pList, 1)
+end)
+
+TPVP:CreateToggle({
+    Name = "Instant Kill Selected Players",
+    CurrentValue = false,
+    Flag = "LPH_IKTToggle",
+    Callback = function(v)
+        LPH_IKT = v
         if v then
-            coroutine.wrap(ikAll)()
+            if #LPH_Targets == 0 then LPH_IKT = false return end
+            task.spawn(ikTarget)
+        end
+    end
+})
+
+TMisc:CreateSection("Player")
+
+local LPH_OrigLvl = LP.leaderstats.Level.Value
+local LPH_LvlLoop = nil
+
+TMisc:CreateToggle({
+    Name = "Level God Mode ⚡",
+    CurrentValue = false,
+    Flag = "LPH_LvlGodToggle",
+    Callback = function(v)
+        LPH_LvlGod = v
+        if v then
+            LPH_OrigLvl = LPH_RealLvl
+            LPH_LvlLoop = game:GetService("RunService").Heartbeat:Connect(function()
+                local lvl = LP.leaderstats.Level
+                if lvl.Value ~= 4000000000000000000 then
+                    lvl.Value = 4000000000000000000
+                end
+            end)
+        else
+            if LPH_LvlLoop then LPH_LvlLoop:Disconnect() LPH_LvlLoop = nil end
+            LP.leaderstats.Level.Value = LPH_OrigLvl
+        end
+    end
+})
+
+TMisc:CreateSection("NPC")
+
+local LPH_OrigDmg = {}
+local LPH_DmgLoop = nil
+
+local function LPH_SaveDmg()
+    for _, area in ipairs(workspace.NPCs:GetChildren()) do
+        LPH_OrigDmg[area.Name] = {}
+        for _, npc in ipairs(area:GetChildren()) do
+            local cfg = npc:FindFirstChild("Configuration")
+            if cfg then
+                local d = cfg:FindFirstChild("Damage")
+                if d then LPH_OrigDmg[area.Name][npc.Name] = d.Value end
+            end
+        end
+    end
+end
+
+local function LPH_ZeroDmg()
+    for _, area in ipairs(workspace.NPCs:GetChildren()) do
+        if not LPH_OrigDmg[area.Name] then LPH_OrigDmg[area.Name] = {} end
+        for _, npc in ipairs(area:GetChildren()) do
+            local cfg = npc:FindFirstChild("Configuration")
+            if cfg then
+                local d = cfg:FindFirstChild("Damage")
+                if d and d.Value ~= 0 then
+                    if not LPH_OrigDmg[area.Name][npc.Name] then
+                        LPH_OrigDmg[area.Name][npc.Name] = d.Value
+                    end
+                    d.Value = 0
+                end
+            end
+        end
+    end
+end
+
+local function LPH_RestoreDmg()
+    for _, area in ipairs(workspace.NPCs:GetChildren()) do
+        for _, npc in ipairs(area:GetChildren()) do
+            local cfg = npc:FindFirstChild("Configuration")
+            if cfg then
+                local d = cfg:FindFirstChild("Damage")
+                if d and LPH_OrigDmg[area.Name] and LPH_OrigDmg[area.Name][npc.Name] then
+                    d.Value = LPH_OrigDmg[area.Name][npc.Name]
+                end
+            end
+        end
+    end
+end
+
+TMisc:CreateToggle({
+    Name = "No NPC Damage 🛡️",
+    CurrentValue = false,
+    Flag = "LPH_NoDmgToggle",
+    Callback = function(v)
+        if v then
+            LPH_SaveDmg()
+            LPH_DmgLoop = game:GetService("RunService").Heartbeat:Connect(LPH_ZeroDmg)
+        else
+            if LPH_DmgLoop then LPH_DmgLoop:Disconnect() LPH_DmgLoop = nil end
+            LPH_RestoreDmg()
         end
     end
 })
@@ -331,198 +563,102 @@ TScript:CreateButton({
     end
 })
 
-local AnimalsGUI = game:GetService("Players").LocalPlayer.PlayerGui.AnimalsGUI
+local AnimalsGUI = LP.PlayerGui.AnimalsGUI
 local Animals = AnimalsGUI.windowFrame.bodyFrame.body2Frame.Animals
 
-local function ExtractAssetId(imageStr)
-    if not imageStr or imageStr == "" then return 4483362458 end
-    local id = imageStr:match("rbxassetid://(%d+)")
-    if id then return tonumber(id) end
-    id = imageStr:match("id=(%d+)")
-    if id then return tonumber(id) end
-    id = imageStr:match("^(%d+)$")
-    if id then return tonumber(id) end
-    return 4483362458
+local function LPH_AssetId(s)
+    if not s or s == "" then return 4483362458 end
+    local id = s:match("rbxassetid://(%d+)") or s:match("id=(%d+)") or s:match("^(%d+)$")
+    return id and tonumber(id) or 4483362458
 end
 
-local function GetSkinImage(animalFolder, skinName)
-    local success, result = pcall(function()
-        return Animals[animalFolder][skinName].Button.ImageLabel.Image
-    end)
-    if success then
-        return ExtractAssetId(result)
-    end
-    return 4483362458
+local function LPH_SkinImg(folder, skin)
+    local ok, r = pcall(function() return Animals[folder][skin].Button.ImageLabel.Image end)
+    return ok and LPH_AssetId(r) or 4483362458
 end
 
-local function NotifySpawn(animalFolder, skinName)
-    local imgId = GetSkinImage(animalFolder, skinName)
-    Rayfield:Notify({
-        Title = "Skin sélectionné",
-        Content = skinName,
-        Duration = 4,
-        Image = imgId,
-    })
+local function LPH_Notify(folder, skin)
+    Rayfield:Notify({Title="Skin sélectionné", Content=skin, Duration=4, Image=LPH_SkinImg(folder, skin)})
 end
 
--- ==================== HUMAN ====================
-local HumanLabel = Tab:CreateLabel("HUMAN SPAWNER", 4483362458, Color3.fromRGB(255, 255, 255), false)
-
-local SelectedHuman = "human_none"
-
-local HumanDropdown = Tab:CreateDropdown({
+local LPH_SelHuman = "human_none"
+Tab:CreateLabel("HUMAN SPAWNER", 4483362458, Color3.fromRGB(255,255,255), false)
+Tab:CreateDropdown({
     Name = "Human Skin",
-    Options = {
-        "human_blade", "human_electric", "human_fire",
-        "human_gamepass1", "human_gamepass2", "human_gamepass3", "human_gamepass4",
-        "human_grass", "human_ice", "human_none",
-        "human_rock", "human_s1", "human_s2",
-        "human_void", "human_water"
-    },
-    CurrentOption = {"human_none"},
-    MultipleOptions = false,
-    Flag = "HumanDropdown",
-    Callback = function(Options)
-        SelectedHuman = Options[1]
-        NotifySpawn("Human", SelectedHuman)
-    end,
+    Options = {"human_blade","human_electric","human_fire","human_gamepass1","human_gamepass2","human_gamepass3","human_gamepass4","human_grass","human_ice","human_none","human_rock","human_s1","human_s2","human_void","human_water"},
+    CurrentOption = {"human_none"}, MultipleOptions = false, Flag = "LPH_HumanDrop",
+    Callback = function(v) LPH_SelHuman = v[1] LPH_Notify("Human", LPH_SelHuman) end,
 })
-
-local HumanButton = Tab:CreateButton({
+Tab:CreateButton({
     Name = "Spawn Human",
     Callback = function()
-        local args = { [1] = "Human", [2] = SelectedHuman, [3] = "Human" }
-        game:GetService("ReplicatedStorage").Events.SpawnEvent:FireServer(unpack(args))
+        game:GetService("ReplicatedStorage").Events.SpawnEvent:FireServer("Human", LPH_SelHuman, "Human")
     end,
 })
 
--- ==================== BEAR ====================
-local BearLabel = Tab:CreateLabel("BEAR SPAWNER", 4483362458, Color3.fromRGB(255, 255, 255), false)
-
-local SelectedBear = "bear1"
-
-local BearDropdown = Tab:CreateDropdown({
+local LPH_SelBear = "bear1"
+Tab:CreateLabel("BEAR SPAWNER", 4483362458, Color3.fromRGB(255,255,255), false)
+Tab:CreateDropdown({
     Name = "Bear Skin",
-    Options = {
-        "babybear1", "babybear2", "babybear3",
-        "bear1", "bear2", "bear3",
-        "bearelectric", "bearfire", "beargrass",
-        "bearice", "bearrock", "bears1", "bears2",
-        "bearvoid", "bearwater"
-    },
-    CurrentOption = {"bear1"},
-    MultipleOptions = false,
-    Flag = "BearDropdown",
-    Callback = function(Options)
-        SelectedBear = Options[1]
-        NotifySpawn("Bear", SelectedBear)
-    end,
+    Options = {"babybear1","babybear2","babybear3","bear1","bear2","bear3","bearelectric","bearfire","beargrass","bearice","bearrock","bears1","bears2","bearvoid","bearwater"},
+    CurrentOption = {"bear1"}, MultipleOptions = false, Flag = "LPH_BearDrop",
+    Callback = function(v) LPH_SelBear = v[1] LPH_Notify("Bear", LPH_SelBear) end,
 })
-
-local BearButton = Tab:CreateButton({
+Tab:CreateButton({
     Name = "Spawn Bear",
     Callback = function()
-        local args = { [1] = "Bear", [2] = SelectedBear, [3] = "Bear" }
-        game:GetService("ReplicatedStorage").Events.SpawnEvent:FireServer(unpack(args))
+        game:GetService("ReplicatedStorage").Events.SpawnEvent:FireServer("Bear", LPH_SelBear, "Bear")
     end,
 })
 
--- ==================== RABBIT ====================
-local RabbitLabel = Tab:CreateLabel("RABBIT SPAWNER", 4483362458, Color3.fromRGB(255, 255, 255), false)
-
-local SelectedRabbit = "rabbit1"
-
-local RabbitDropdown = Tab:CreateDropdown({
+local LPH_SelRabbit = "rabbit1"
+Tab:CreateLabel("RABBIT SPAWNER", 4483362458, Color3.fromRGB(255,255,255), false)
+Tab:CreateDropdown({
     Name = "Rabbit Skin",
-    Options = {
-        "babyrabbit1", "babyrabbit2", "babyrabbit3",
-        "rabbit1", "rabbit2", "rabbit3",
-        "rabbitelectric", "rabbitfire", "rabbitgrass",
-        "rabbitice", "rabbitrock", "rabbits1", "rabbits2",
-        "rabbitvoid", "rabbitwater"
-    },
-    CurrentOption = {"rabbit1"},
-    MultipleOptions = false,
-    Flag = "RabbitDropdown",
-    Callback = function(Options)
-        SelectedRabbit = Options[1]
-        NotifySpawn("Rabbit", SelectedRabbit)
-    end,
+    Options = {"babyrabbit1","babyrabbit2","babyrabbit3","rabbit1","rabbit2","rabbit3","rabbitelectric","rabbitfire","rabbitgrass","rabbitice","rabbitrock","rabbits1","rabbits2","rabbitvoid","rabbitwater"},
+    CurrentOption = {"rabbit1"}, MultipleOptions = false, Flag = "LPH_RabbitDrop",
+    Callback = function(v) LPH_SelRabbit = v[1] LPH_Notify("Rabbit", LPH_SelRabbit) end,
 })
-
-local RabbitButton = Tab:CreateButton({
+Tab:CreateButton({
     Name = "Spawn Rabbit",
     Callback = function()
-        local args = { [1] = "Rabbit", [2] = SelectedRabbit, [3] = "Rabbit" }
-        game:GetService("ReplicatedStorage").Events.SpawnEvent:FireServer(unpack(args))
+        game:GetService("ReplicatedStorage").Events.SpawnEvent:FireServer("Rabbit", LPH_SelRabbit, "Rabbit")
     end,
 })
 
--- ==================== DOG ====================
-local DogLabel = Tab:CreateLabel("DOG SPAWNER", 4483362458, Color3.fromRGB(255, 255, 255), false)
-
-local SelectedDog = "dog1"
-
-local DogDropdown = Tab:CreateDropdown({
+local LPH_SelDog = "dog1"
+Tab:CreateLabel("DOG SPAWNER", 4483362458, Color3.fromRGB(255,255,255), false)
+Tab:CreateDropdown({
     Name = "Dog Skin",
-    Options = {
-        "dog1", "dog2", "dog3",
-        "dogelectric", "dogfire", "doggrass",
-        "dogice", "dogrock", "dogs1", "dogs2",
-        "dogvoid", "dogwater",
-        "puppy1", "puppy2", "puppy3"
-    },
-    CurrentOption = {"dog1"},
-    MultipleOptions = false,
-    Flag = "DogDropdown",
-    Callback = function(Options)
-        SelectedDog = Options[1]
-        NotifySpawn("Dog", SelectedDog)
-    end,
+    Options = {"dog1","dog2","dog3","dogelectric","dogfire","doggrass","dogice","dogrock","dogs1","dogs2","dogvoid","dogwater","puppy1","puppy2","puppy3"},
+    CurrentOption = {"dog1"}, MultipleOptions = false, Flag = "LPH_DogDrop",
+    Callback = function(v) LPH_SelDog = v[1] LPH_Notify("Dog", LPH_SelDog) end,
 })
-
-local DogButton = Tab:CreateButton({
+Tab:CreateButton({
     Name = "Spawn Dog",
     Callback = function()
-        local args = { [1] = "Dog", [2] = SelectedDog, [3] = "Dog" }
-        game:GetService("ReplicatedStorage").Events.SpawnEvent:FireServer(unpack(args))
+        game:GetService("ReplicatedStorage").Events.SpawnEvent:FireServer("Dog", LPH_SelDog, "Dog")
     end,
 })
 
--- ==================== CAT ====================
-local CatLabel = Tab:CreateLabel("CAT SPAWNER", 4483362458, Color3.fromRGB(255, 255, 255), false)
-
-local SelectedCat = "cat1"
-
-local CatDropdown = Tab:CreateDropdown({
+local LPH_SelCat = "cat1"
+Tab:CreateLabel("CAT SPAWNER", 4483362458, Color3.fromRGB(255,255,255), false)
+Tab:CreateDropdown({
     Name = "Cat Skin",
-    Options = {
-        "cat1", "cat2", "cat3",
-        "catelectric", "catfire", "catgrass",
-        "catice", "catrock", "cats1", "cats2",
-        "catvoid", "catwater",
-        "kitten1", "kitten2", "kitten3"
-    },
-    CurrentOption = {"cat1"},
-    MultipleOptions = false,
-    Flag = "CatDropdown",
-    Callback = function(Options)
-        SelectedCat = Options[1]
-        NotifySpawn("Cat", SelectedCat)
-    end,
+    Options = {"cat1","cat2","cat3","catelectric","catfire","catgrass","catice","catrock","cats1","cats2","catvoid","catwater","kitten1","kitten2","kitten3"},
+    CurrentOption = {"cat1"}, MultipleOptions = false, Flag = "LPH_CatDrop",
+    Callback = function(v) LPH_SelCat = v[1] LPH_Notify("Cat", LPH_SelCat) end,
 })
-
-local CatButton = Tab:CreateButton({
+Tab:CreateButton({
     Name = "Spawn Cat",
     Callback = function()
-        local args = { [1] = "Cat", [2] = SelectedCat, [3] = "Cat" }
-        game:GetService("ReplicatedStorage").Events.SpawnEvent:FireServer(unpack(args))
+        game:GetService("ReplicatedStorage").Events.SpawnEvent:FireServer("Cat", LPH_SelCat, "Cat")
     end,
 })
 
 TCredits:CreateSection("Credits")
-TCredits:CreateParagraph({Title = "Scripting", Content = "frite (C.N) [frite.exe_v1]"})
-TCredits:CreateParagraph({Title = "Management", Content = "frite (C.N) [frite.exe_v1]"})
-TCredits:CreateParagraph({Title = "UI Library", Content = "Rayfield"})
+TCredits:CreateParagraph({Title="Scripting", Content="frite (C.N) [frite.exe_v1]"})
+TCredits:CreateParagraph({Title="Management", Content="frite (C.N) [frite.exe_v1]"})
+TCredits:CreateParagraph({Title="UI Library", Content="Rayfield"})
 
 Rayfield:LoadConfiguration()
